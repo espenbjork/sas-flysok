@@ -1,0 +1,7 @@
+# Kopier til .dev.vars for lokal utvikling (wrangler dev leser den automatisk)
+# Gratis nøkkel: registrer deg på https://apideveloper.swedavia.se og abonner på FlightInfo v2
+SWEDAVIA_KEY=
+
+# Valgfri – trengs bare for danske flyplasser (CPH/BLL/AAL).
+# Nøkkel fra https://rapidapi.com/aedbx-aedbx/api/aerodatabox
+AERODATABOX_KEY=
