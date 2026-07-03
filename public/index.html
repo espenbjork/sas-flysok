@@ -110,6 +110,9 @@
   .st-ok { background: #e7f6ec; color: var(--ok); }
   .st-plan { background: #eef2f7; color: var(--muted); }
   .st-bad { background: #fde8e8; color: var(--bad); }
+  .price-link { color: var(--accent); text-decoration: none; font-size: 0.82rem; white-space: nowrap; }
+  .price-link:hover { text-decoration: underline; }
+  td.price-na { color: var(--muted); }
   .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
   footer { max-width: 960px; margin: 0 auto; padding: 0 16px 32px; font-size: 0.8rem; color: var(--muted); }
 
@@ -494,13 +497,17 @@ function renderList() {
   for (const [, day] of byDay) {
     out += `<div class="day"><h2>${esc(cap(day.label))}</h2><table>
       <thead><tr><th>Tid</th><th>Flight</th>${showDirCol ? '<th>Retning</th>' : ''}
-      <th>${data.direction === 'A' ? 'Fra' : showDirCol ? 'Fra/til' : 'Til'}</th><th>Gate</th><th>Status</th></tr></thead><tbody>`;
+      <th>${data.direction === 'A' ? 'Fra' : showDirCol ? 'Fra/til' : 'Til'}</th><th>Gate</th><th>Status</th><th>Pris</th></tr></thead><tbody>`;
     for (const f of day.flights) {
       const place = nameOf(f);
       const via = f.via ? ` <span style="color:var(--muted)">via ${esc((AIRPORTS[f.via] || [])[0] || f.via)}</span>` : '';
       const dirCell = showDirCol
         ? `<td><span class="dir-badge ${f.direction === 'D' ? 'dir-d' : 'dir-a'}">${f.direction === 'D' ? 'Avgang' : 'Ankomst'}</span></td>`
         : '';
+      const url = priceUrl(f);
+      const priceCell = url
+        ? `<td><a class="price-link" href="${url}" target="_blank" rel="noopener">Sjekk pris ↗</a></td>`
+        : '<td class="price-na">–</td>';
       out += `<tr>
         <td class="time">${fmtTime.format(new Date(f.scheduledUtc))}</td>
         <td class="flight">${esc(f.flightId)}</td>
@@ -508,6 +515,7 @@ function renderList() {
         <td>${esc(place)} <span style="color:var(--muted)">${f.otherIata && place !== f.otherIata ? '(' + esc(f.otherIata) + ')' : ''}</span>${via}</td>
         <td>${esc(f.gate || '–')}</td>
         <td><span class="st ${statusClass(f.status)}">${esc(f.status)}</span></td>
+        ${priceCell}
       </tr>`;
     }
     out += '</tbody></table></div>';
@@ -522,6 +530,20 @@ function statusClass(status) {
   return 'st-plan';
 }
 
+// Google Flights-søk (SAS, rute + dato) for fremtidige, bookbare avganger.
+// Fortid/allerede avgåtte fly kan ikke bookes, så da vises ingen lenke.
+function priceUrl(f) {
+  if (!f.otherIata || new Date(f.scheduledUtc) <= new Date()) return null;
+  const origin = f.direction === 'D' ? lastQuery.airport : f.otherIata;
+  const dest = f.direction === 'D' ? f.otherIata : lastQuery.airport;
+  if (!origin || !dest || origin === dest) return null;
+  const date = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(f.scheduledUtc));
+  const q = `SAS flights from ${origin} to ${dest} on ${date}`;
+  return 'https://www.google.com/travel/flights?q=' + encodeURIComponent(q);
+}
+
 function downloadCsv() {
   const flights = activeFlights();
   if (!flights.length) return;
@@ -529,7 +551,7 @@ function downloadCsv() {
     timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit'
   });
-  const rows = [['Dato/tid (lokal)', 'Flight', 'Retning', 'Flyplass', 'IATA', 'Region', 'Gate', 'Terminal', 'Status']];
+  const rows = [['Dato/tid (lokal)', 'Flight', 'Retning', 'Flyplass', 'IATA', 'Region', 'Gate', 'Terminal', 'Status', 'Pris (lenke)']];
   const regionLabel = Object.fromEntries(REGION_DEFS.map((r) => [r.key, r.label]));
   for (const f of flights) {
     rows.push([
@@ -542,6 +564,7 @@ function downloadCsv() {
       f.gate || '',
       f.terminal || '',
       f.status,
+      priceUrl(f) || '',
     ]);
   }
   const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
