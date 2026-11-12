@@ -297,7 +297,9 @@ const COUNTRY_REGION = {
 };
 
 // På GitHub Pages går API-kall til Cloudflare-workeren; lokalt/på workers.dev er de same-origin
-const API_BASE = location.hostname.endsWith('github.io') ? 'https://sas-flysok.dreampodcast.workers.dev' : '';
+// Statisk kopi (GitHub Pages, også under espenbjork.no) henter fra Workeren.
+// Serveres siden av Workeren selv, eller lokalt, brukes samme opphav.
+const API_BASE = /(^|\.)(github\.io|espenbjork\.no)$/.test(location.hostname) ? 'https://sas-flysok.dreampodcast.workers.dev' : '';
 
 const $ = (id) => document.getElementById(id);
 let direction = 'D';
